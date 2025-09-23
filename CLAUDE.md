@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This repository contains a comprehensive 2-day Agentic AI workshop covering foundations, multiple frameworks, and hands-on implementation exercises. The workshop is designed to teach both theoretical concepts and practical skills for building autonomous AI systems.
+This repository contains a comprehensive Agentic AI tutorial covering foundations, multiple frameworks, and hands-on implementation exercises. The tutorial is designed to teach both theoretical concepts and practical skills for building autonomous AI systems.
 
 ## Repository Structure
 
@@ -48,7 +48,7 @@ python verify_setup.py
 
 ## Key Framework Coverage
 
-The workshop covers these major agentic AI frameworks:
+The tutorial covers these major agentic AI frameworks:
 - **OpenAI/Anthropic APIs**: Direct model integration
 - **LangChain**: Tool integration and agent chains
 - **LangGraph**: Complex workflow orchestration
@@ -76,7 +76,7 @@ cd 02-llm-apis/
 python openai_basics.py
 ```
 
-### Workshop Progression
+### Tutorial Progression
 Follow the modules in order for structured learning:
 1. Start with `01-foundations/` for core concepts
 2. Progress through `02-llm-apis/` to `12-mcp/` for framework-specific learning
@@ -105,8 +105,8 @@ Use the verification script to test all API connections:
 python verify_setup.py
 ```
 
-### Running Workshop Sessions
-Follow the `WORKSHOP_SCHEDULE.md` for structured delivery of the 2-day program.
+### Running Tutorial Sessions
+Follow the tutorial modules in sequence for structured learning.
 
 ## Best Practices
 
@@ -119,9 +119,9 @@ Follow the `WORKSHOP_SCHEDULE.md` for structured delivery of the 2-day program.
 ### API Key Management
 - Never commit API keys to repository
 - Use environment variables for all credentials
-- Provide clear setup instructions for participants
+- Provide clear setup instructions for learners
 - Test with invalid keys to ensure proper error handling
 
 ## Final Integration Project
 
-The workshop culminates in a comprehensive integration project found in `exercises/integration/FINAL_PROJECT.md` where participants build a multi-framework system demonstrating real-world agentic AI application.
+The tutorial culminates in a comprehensive integration project found in `exercises/integration/FINAL_PROJECT.md` where learners build a multi-framework system demonstrating real-world agentic AI application.

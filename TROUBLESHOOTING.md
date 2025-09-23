@@ -388,12 +388,12 @@ MemoryError: Unable to allocate array
 ```bash
 # Install kernel for virtual environment
 pip install ipykernel
-python -m ipykernel install --user --name agentic-ai --display-name "Agentic AI Workshop"
+python -m ipykernel install --user --name agentic-ai --display-name "Agentic AI Tutorial"
 
 # Start Jupyter
 jupyter notebook
 
-# Select "Agentic AI Workshop" kernel
+# Select "Agentic AI Tutorial" kernel
 ```
 
 ### 10. Getting Help
@@ -424,7 +424,7 @@ jupyter notebook
    ```
 
 3. **Community resources:**
-   - Workshop GitHub discussions
+   - Tutorial GitHub discussions
    - Stack Overflow with relevant tags
    - Framework-specific Discord/forums
 

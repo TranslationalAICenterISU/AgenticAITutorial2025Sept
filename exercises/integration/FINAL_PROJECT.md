@@ -1,6 +1,6 @@
 # Final Integration Project - Multi-Framework Agentic AI System
 
-This is the culminating project of the Agentic AI workshop. You'll design and implement a production-ready system that integrates multiple frameworks to solve a complex, real-world problem.
+This is the culminating project of the Agentic AI tutorial. You'll design and implement a production-ready system that integrates multiple frameworks to solve a complex, real-world problem.
 
 ## Project Overview
 
@@ -164,7 +164,7 @@ Your project will be evaluated on the following criteria:
 2. **Set Up Repository**: Create GitHub repo with initial structure
 3. **Plan Architecture**: Design your system and integration points
 4. **Start Coding**: Begin with Phase 1 implementation
-5. **Get Help**: Use workshop Slack/Discord for questions and support
+5. **Get Help**: Use tutorial Slack/Discord for questions and support
 
 ## Success Tips
 

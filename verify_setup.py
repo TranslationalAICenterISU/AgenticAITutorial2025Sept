@@ -1,5 +1,5 @@
 """
-Workshop Setup Verification Script
+Tutorial Setup Verification Script
 Verifies that all required packages are installed and API keys are configured
 """
 
@@ -64,7 +64,7 @@ def test_api_connection(service: str) -> Tuple[bool, str]:
 
 def main():
     """Main verification function"""
-    print("🚀 Agentic AI Workshop Setup Verification")
+    print("🚀 Agentic AI Tutorial Setup Verification")
     print("=" * 50)
 
     # Track overall success
@@ -157,7 +157,7 @@ def main():
     print("\\n" + "=" * 50)
     if all_passed:
         print("🎉 Setup verification completed successfully!")
-        print("You're ready to start the Agentic AI workshop!")
+        print("You're ready to start the Agentic AI tutorial!")
     else:
         print("❌ Setup verification failed!")
         print("\\nPlease address the following issues:")

@@ -593,7 +593,7 @@ def claude_safety_features():
 def main():
     """Run all Claude demonstrations"""
 
-    print("🧠 ANTHROPIC CLAUDE API WORKSHOP")
+    print("🧠 ANTHROPIC CLAUDE API TUTORIAL")
     print("="*35)
 
     demonstrations = [

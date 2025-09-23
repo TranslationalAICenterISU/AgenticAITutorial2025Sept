@@ -1,7 +1,7 @@
 """
 Integration Capstone Project - Multi-Framework Agentic AI System
 
-This is the culminating exercise for the Agentic AI workshop. You'll build a
+This is the culminating exercise for the Agentic AI tutorial. You'll build a
 complete system that integrates multiple frameworks to solve a real-world problem.
 
 Project Options:
@@ -611,7 +611,7 @@ def main():
     ✅ Production deployment considerations
 
     🛠️ Technical Requirements:
-    • Use at least 3 different frameworks from the workshop
+    • Use at least 3 different frameworks from the tutorial
     • Implement proper error handling and logging
     • Include performance monitoring and metrics
     • Add comprehensive testing
@@ -710,7 +710,7 @@ def main():
     print("5. Test, document, and deploy your system")
 
     print("\\n📚 Resources:")
-    print("• Review all previous workshop modules")
+    print("• Review all previous tutorial modules")
     print("• Check framework documentation for integration tips")
     print("• Use the provided testing framework")
     print("• Follow the implementation timeline")

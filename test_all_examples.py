@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Comprehensive Testing Script for Agentic AI Workshop
+Comprehensive Testing Script for Agentic AI Tutorial
 ====================================================
 
-This script tests all example files across all workshop modules to ensure they:
+This script tests all example files across all tutorial modules to ensure they:
 1. Import correctly without errors
 2. Have basic functionality working
 3. Handle missing dependencies gracefully
@@ -55,8 +55,8 @@ class ModuleTestReport:
     results: List[TestResult] = field(default_factory=list)
 
 
-class WorkshopTester:
-    """Comprehensive tester for workshop examples"""
+class TutorialTester:
+    """Comprehensive tester for tutorial examples"""
 
     def __init__(self):
         self.base_dir = Path(__file__).parent
@@ -64,7 +64,7 @@ class WorkshopTester:
         self.test_results = {}
 
     def _discover_modules(self) -> Dict[str, Path]:
-        """Discover all workshop modules"""
+        """Discover all tutorial modules"""
         modules = {}
         for path in self.base_dir.iterdir():
             if path.is_dir() and path.name.startswith(('0', '1')):
@@ -293,8 +293,8 @@ class WorkshopTester:
         return report
 
     def test_all_modules(self, test_type: str = "import") -> Dict[str, ModuleTestReport]:
-        """Test all workshop modules"""
-        print("🚀 Agentic AI Workshop - Comprehensive Testing")
+        """Test all tutorial modules"""
+        print("🚀 Agentic AI Tutorial - Comprehensive Testing")
         print("=" * 60)
 
         print(f"Testing {len(self.modules)} modules with {test_type} tests:")
@@ -360,13 +360,13 @@ class WorkshopTester:
 
         print(f"\\n🎯 Recommendations:")
         if total_failed == 0:
-            print("   🎉 All tests passed! Workshop examples are ready.")
+            print("   🎉 All tests passed! Tutorial examples are ready.")
         elif total_failed < total_files * 0.1:
             print("   ✅ Most tests passed. Fix remaining issues for optimal experience.")
         elif total_failed < total_files * 0.3:
-            print("   ⚠️  Some issues found. Review failed tests before workshop.")
+            print("   ⚠️  Some issues found. Review failed tests before tutorial.")
         else:
-            print("   🚨 Many issues found. Comprehensive review needed before workshop.")
+            print("   🚨 Many issues found. Comprehensive review needed before tutorial.")
 
         print(f"\\n📝 Next Steps:")
         if failed_results:
@@ -375,9 +375,9 @@ class WorkshopTester:
             print("   3. Ensure all API keys are properly configured")
             print("   4. Re-run tests to verify fixes")
         else:
-            print("   1. Workshop examples are ready to use!")
+            print("   1. Tutorial examples are ready to use!")
             print("   2. Ensure participants have required API keys")
-            print("   3. Share setup instructions from GETTING_STARTED.md")
+            print("   3. Share setup instructions from README.md")
 
     def generate_report(self, output_file: str = "test_report.json"):
         """Generate detailed JSON report"""
@@ -497,7 +497,7 @@ class WorkshopTester:
 
 def main():
     """Main testing function"""
-    parser = argparse.ArgumentParser(description="Test Agentic AI Workshop Examples")
+    parser = argparse.ArgumentParser(description="Test Agentic AI Tutorial Examples")
     parser.add_argument("--module", help="Test specific module (e.g., 01-foundations)")
     parser.add_argument("--quick", action="store_true", help="Quick test (imports only)")
     parser.add_argument("--detailed", action="store_true", help="Detailed test with execution")
@@ -507,7 +507,7 @@ def main():
 
     args = parser.parse_args()
 
-    tester = WorkshopTester()
+    tester = TutorialTester()
 
     # Determine test type
     if args.detailed:
