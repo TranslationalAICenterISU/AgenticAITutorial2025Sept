@@ -69,11 +69,6 @@ torchvision>=0.15.0
 sentencepiece>=0.1.99
 tokenizers>=0.15.0
 
-# Local inference optimization
-optimum>=1.14.0
-auto-gptq>=0.4.0  # GPU quantization
-ctransformers>=0.2.0  # CPU inference
-llama-cpp-python>=0.2.0  # CPU inference for Llama models
 
 # Optional GPU acceleration
 # torch-audio>=2.0.0  # Uncomment if needed

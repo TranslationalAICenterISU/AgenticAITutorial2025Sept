@@ -28,8 +28,8 @@ load_dotenv()
 class TaskManagerTool(BaseTool):
     """Advanced tool for task management"""
 
-    name = "task_manager"
-    description = "Manage tasks: create, list, update status, or delete tasks. Input format: 'action:task_description' or 'action:task_id:new_status'"
+    name: str = "task_manager"
+    description: str = "Manage tasks: create, list, update status, or delete tasks. Input format: 'action:task_description' or 'action:task_id:new_status'"
 
     def __init__(self):
         super().__init__()
@@ -95,8 +95,8 @@ class TaskManagerTool(BaseTool):
 class DataAnalyzerTool(BaseTool):
     """Tool for analyzing data and generating insights"""
 
-    name = "data_analyzer"
-    description = "Analyze numerical data and provide statistics. Input: comma-separated numbers or 'demo' for sample data"
+    name: str = "data_analyzer"
+    description: str = "Analyze numerical data and provide statistics. Input: comma-separated numbers or 'demo' for sample data"
 
     def _run(self, data_input: str) -> str:
         """Analyze numerical data"""
@@ -165,8 +165,8 @@ class DataAnalyzerTool(BaseTool):
 class CodeReviewTool(BaseTool):
     """Tool for reviewing and analyzing code"""
 
-    name = "code_reviewer"
-    description = "Review code for quality, bugs, and improvements. Input: programming language and code separated by '|' (e.g., 'python|print(hello)')"
+    name: str = "code_reviewer"
+    description: str = "Review code for quality, bugs, and improvements. Input: programming language and code separated by '|' (e.g., 'python|print(hello)')"
 
     def _run(self, input_str: str) -> str:
         """Review code for quality and issues"""
@@ -294,8 +294,8 @@ class CodeReviewTool(BaseTool):
 class ProjectPlannerTool(BaseTool):
     """Tool for creating and managing project plans"""
 
-    name = "project_planner"
-    description = "Create detailed project plans with timelines and milestones. Input: project description"
+    name: str = "project_planner"
+    description: str = "Create detailed project plans with timelines and milestones. Input: project description"
 
     def _run(self, project_description: str) -> str:
         """Create a detailed project plan"""

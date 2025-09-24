@@ -70,8 +70,8 @@ class BusinessDataManager:
 class SalesAnalysisTool(BaseTool):
     """Tool for analyzing sales data"""
 
-    name = "sales_analyzer"
-    description = "Analyze sales data and generate insights. Input: 'summary', 'trends', or 'forecast'"
+    name: str = "sales_analyzer"
+    description: str = "Analyze sales data and generate insights. Input: 'summary', 'trends', or 'forecast'"
 
     def __init__(self):
         super().__init__()
@@ -202,8 +202,8 @@ class SalesAnalysisTool(BaseTool):
 class EmployeeAnalysisTool(BaseTool):
     """Tool for analyzing employee data"""
 
-    name = "employee_analyzer"
-    description = "Analyze employee data and HR metrics. Input: 'overview', 'performance', or 'compensation'"
+    name: str = "employee_analyzer"
+    description: str = "Analyze employee data and HR metrics. Input: 'overview', 'performance', or 'compensation'"
 
     def __init__(self):
         super().__init__()
@@ -356,8 +356,8 @@ class EmployeeAnalysisTool(BaseTool):
 class CustomerFeedbackTool(BaseTool):
     """Tool for analyzing customer feedback"""
 
-    name = "feedback_analyzer"
-    description = "Analyze customer feedback and satisfaction. Input: 'summary' or 'insights'"
+    name: str = "feedback_analyzer"
+    description: str = "Analyze customer feedback and satisfaction. Input: 'summary' or 'insights'"
 
     def __init__(self):
         super().__init__()
@@ -487,8 +487,8 @@ class CustomerFeedbackTool(BaseTool):
 class BusinessReportGenerator(BaseTool):
     """Tool for generating comprehensive business reports"""
 
-    name = "report_generator"
-    description = "Generate comprehensive business reports. Input: 'executive' for executive summary, 'detailed' for full analysis"
+    name: str = "report_generator"
+    description: str = "Generate comprehensive business reports. Input: 'executive' for executive summary, 'detailed' for full analysis"
 
     def __init__(self):
         super().__init__()

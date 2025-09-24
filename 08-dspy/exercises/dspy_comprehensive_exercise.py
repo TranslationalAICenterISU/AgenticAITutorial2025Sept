@@ -35,7 +35,6 @@ try:
     import dspy
     from dspy.evaluate import Evaluate
     from dspy.teleprompt import BootstrapFewShot, COPRO, MIPROv2
-    from dspy.primitives.assertions import assert_transform_module, backtrack_handler
 except ImportError:
     dspy = None
     print("❌ DSPy not available. Install with: pip install dspy-ai")
