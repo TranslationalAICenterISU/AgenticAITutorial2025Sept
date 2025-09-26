@@ -17,7 +17,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.callbacks import StdOutCallbackHandler
 
 # Modern tool patterns
-from langchain_core.tools import Tool, tool
+from langchain_core.tools import tool, Tool
 from langchain.agents import create_react_agent, create_structured_chat_agent, AgentExecutor
 from langchain.agents.format_scratchpad import format_to_openai_function_messages
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
@@ -102,11 +102,11 @@ def demonstrate_lcel_chains():
 
     # Complex chain using LCEL
     complex_chain = (
-        {"subject": RunnablePassthrough()}
+        RunnablePassthrough()
         | {"topic": topic_prompt | llm | StrOutputParser()}
-        | {"topic": lambda x: x["topic"],
+        | {"topic": RunnableLambda(lambda x: x["topic"]),
            "outline": outline_prompt | llm | StrOutputParser()}
-        | {"topic": lambda x: x["topic"],
+        | {"topic": RunnableLambda(lambda x: x["topic"]),
            "outline": lambda x: x["outline"],
            "introduction": intro_prompt | llm | StrOutputParser()}
     )
@@ -132,6 +132,7 @@ def demonstrate_modern_agents():
     # Initialize LLM
     llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 
+    from langchain_core.tools import tool, Tool
     # Define tools using the modern @tool decorator
     @tool
     def python_calculator(expression: str) -> str:

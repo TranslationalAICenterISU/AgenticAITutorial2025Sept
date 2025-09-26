@@ -32,9 +32,9 @@ class TaskManagerTool(BaseTool):
     description: str = "Manage tasks: create, list, update status, or delete tasks. Input format: 'action:task_description' or 'action:task_id:new_status'"
 
     def __init__(self):
-        super().__init__()
-        self.tasks = {}
+        self.tasks: Dict[int, Dict[str, Any]] = {}
         self.next_id = 1
+        super().__init__()
 
     def _run(self, query: str) -> str:
         """Execute task management operations"""
