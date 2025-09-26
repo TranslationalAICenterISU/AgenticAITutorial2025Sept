@@ -4,7 +4,6 @@ Build a complete business intelligence agent using LangChain
 
 OBJECTIVE: Create a multi-functional business agent that can analyze data, generate reports, and provide insights
 DIFFICULTY: Advanced
-TIME: 45-60 minutes
 """
 
 import os

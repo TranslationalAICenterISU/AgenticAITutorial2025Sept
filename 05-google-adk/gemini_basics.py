@@ -19,7 +19,7 @@ load_dotenv()
 class GeminiAgent:
     """Agent using Google's Gemini model"""
 
-    def __init__(self, model_name: str = "gemini-1.5-flash"):
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
         # Configure Gemini
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
@@ -246,7 +246,7 @@ class MultimodalAgent:
             raise ValueError("GOOGLE_API_KEY not found")
 
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-1.5-pro")
+        self.model = genai.GenerativeModel("gemini-2.5-flash")
 
     def analyze_document(self, file_path: str, question: str = "Analyze this document") -> str:
         """Analyze various document types"""
@@ -376,7 +376,7 @@ def demonstrate_gemini():
     print("-" * 30)
 
     try:
-        agent = GeminiAgent("gemini-1.5-flash")
+        agent = GeminiAgent("gemini-2.5-flash")
 
         system_prompt = "You are a helpful AI assistant specializing in technology and programming."
 

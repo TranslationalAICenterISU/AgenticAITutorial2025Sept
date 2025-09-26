@@ -22,7 +22,7 @@ load_dotenv()
 class VisualAnalysisAgent:
     """Agent specialized in visual content analysis"""
 
-    def __init__(self, model_name: str = "gemini-1.5-pro"):
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError("GOOGLE_API_KEY not found in environment variables")
@@ -556,7 +556,7 @@ class DocumentProcessingAgent:
 class ContentCreationAgent:
     """Agent for creating multimodal content"""
 
-    def __init__(self, model_name: str = "gemini-1.5-pro"):
+    def __init__(self, model_name: str = "gemini-2.5-pro"):
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError("GOOGLE_API_KEY not found in environment variables")
