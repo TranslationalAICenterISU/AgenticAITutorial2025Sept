@@ -25,7 +25,7 @@ class ConversationTurn:
 class ClaudeAgent:
     """Agent using Anthropic's Claude model with advanced features"""
 
-    def __init__(self, model: str = "claude-3-sonnet-20240229"):
+    def __init__(self, model: str = "claude-3-7-sonnet-latest"):
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
@@ -253,7 +253,7 @@ class ClaudeAgent:
                 "content": user_message
             })
 
-            # Make API call with tools
+            # First API call with tools
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=1024,
@@ -262,63 +262,72 @@ class ClaudeAgent:
                 tools=self.available_tools
             )
 
-            # Handle tool use
-            if response.content and len(response.content) > 0:
-                response_text = ""
-                tool_results = []
+            response_text = ""
+            tool_results = []
 
+            # Process Claude's response
+            if response.content and len(response.content) > 0:
                 for content_block in response.content:
-                    if hasattr(content_block, 'text'):
+                    if content_block.type == "text":
                         response_text += content_block.text
-                    elif hasattr(content_block, 'name'):  # Tool use
+                    elif content_block.type == "tool_use":  # Claude invoked a tool
+                        tool_id = content_block.id
                         tool_name = content_block.name
                         tool_input = content_block.input
 
                         print(f"🔧 Using tool: {tool_name}")
                         print(f"📋 Input: {tool_input}")
 
-                        # Execute tool
+                        # Run the tool
                         tool_result = self.execute_tool(tool_name, tool_input)
-                        tool_results.append(tool_result)
 
                         print(f"🔍 Result: {tool_result}")
 
-                # If tools were used, get follow-up response
-                if tool_results:
-                    # Add tool results to conversation
-                    messages.append({
-                        "role": "assistant",
-                        "content": response.content
-                    })
-
-                    for result in tool_results:
-                        messages.append({
-                            "role": "user",
-                            "content": f"Tool result: {result}"
+                        # Save for follow-up
+                        tool_results.append({
+                            "tool_use_id": tool_id,
+                            "content": tool_result
                         })
 
-                    # Get final response
-                    follow_up = self.client.messages.create(
-                        model=self.model,
-                        max_tokens=1024,
-                        system=system_prompt or "Provide a helpful response based on the tool results.",
-                        messages=messages
-                    )
+            # If tools were used, send results back to Claude
+            if tool_results:
+                messages.append({
+                    "role": "assistant",
+                    "content": response.content  # include Claude's original tool request
+                })
 
-                    final_response = ""
-                    for content_block in follow_up.content:
-                        if hasattr(content_block, 'text'):
-                            final_response += content_block.text
+                for result in tool_results:
+                    messages.append({
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": result["tool_use_id"],
+                                "content": result["content"]
+                            }
+                        ]
+                    })
 
-                    response_text = final_response
+                # Second call: give Claude the tool results
+                follow_up = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=1024,
+                    system=system_prompt or "Provide a helpful response based on the tool results.",
+                    messages=messages
+                )
 
-                # Store conversation
-                self.conversation_history.append(ConversationTurn("user", user_message, time.time()))
-                self.conversation_history.append(ConversationTurn("assistant", response_text, time.time()))
+                final_response = ""
+                for content_block in follow_up.content:
+                    if content_block.type == "text":
+                        final_response += content_block.text
 
-                return response_text
+                response_text = final_response
 
-            return "No response generated"
+            # Store conversation
+            self.conversation_history.append(ConversationTurn("user", user_message, time.time()))
+            self.conversation_history.append(ConversationTurn("assistant", response_text, time.time()))
+
+            return response_text or "No response generated"
 
         except Exception as e:
             return f"Error in conversation: {str(e)}"
@@ -386,9 +395,9 @@ class ClaudeComparison:
 
         self.client = anthropic.Anthropic(api_key=api_key)
         self.models = [
-            "claude-3-haiku-20240307",    # Fast and efficient
-            "claude-3-sonnet-20240229",   # Balanced performance
-            "claude-3-opus-20240229"      # Highest capability (if available)
+            "claude-3-5-haiku-latest",    # Fast and efficient
+            "claude-opus-4-1-20250805",   # Balanced performance
+            "claude-3-7-sonnet-latest"      # Highest capability (if available)
         ]
 
     def compare_models(self, prompt: str) -> Dict[str, Dict[str, Any]]:
@@ -485,7 +494,7 @@ def demonstrate_claude_basics():
     print("-" * 45)
 
     test_conversations = [
-        "Can you calculate the compound interest on $1000 at 5% annual rate for 3 years? Use the formula: A = P(1 + r)^t",
+        "Can you calculate the compound interest on $1000 at 5% annual rate for 3 years? Use the formula: A = P(1 + r)**t",
         "Please analyze the sentiment of this text: 'I absolutely love this new feature! It's incredibly useful and well-designed.'",
         "Can you review this Python code and suggest improvements?\\n\\ndef calculate_average(numbers):\\n    return sum(numbers) / len(numbers)",
         "Help me plan a project to create a personal blog website. I want to use modern web technologies."
