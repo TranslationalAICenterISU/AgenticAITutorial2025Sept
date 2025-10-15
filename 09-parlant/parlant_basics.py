@@ -1,599 +1,514 @@
 """
-Parlant Basics - Conversational AI Framework
+Parlant Basics - Official SDK Implementation
+Conversational AI Framework for Building Customer-Facing Agents
 
-Parlant is a framework designed specifically for building conversational AI agents
-with natural dialogue capabilities, context management, and sophisticated conversation flows.
+Parlant is a framework designed for building conversational AI agents with:
+- Natural dialogue management
+- Tool integration for real-world actions
+- Customer session management
+- Journey-based conversation flows
+- Behavioral guidelines
 
-Note: This module provides a conceptual implementation since Parlant may not be
-a standard package. The concepts demonstrated here are universal for conversation systems.
-
-Key concepts covered:
-- Conversation state management
-- Turn-taking and dialogue flow
-- Context preservation
-- Intent recognition and response generation
-- Multi-turn conversations
+Official Parlant SDK: https://github.com/emcie-co/parlant
 """
 
 import os
-import sys
-import json
-import time
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, field
-from enum import Enum
-import openai
-import anthropic
+import asyncio
+from datetime import datetime
+from typing import Optional
 from dotenv import load_dotenv
 
-# Load environment variables
+# Official Parlant SDK imports
+try:
+    import parlant.sdk as p
+    from parlant.sdk import ToolContext, ToolResult, NLPServices
+    PARLANT_AVAILABLE = True
+except ImportError:
+    PARLANT_AVAILABLE = False
+    print("⚠️  Parlant SDK not installed. Install with: pip install parlant")
+
 load_dotenv()
 
 
-class IntentType(Enum):
-    """Common conversation intent types"""
-    GREETING = "greeting"
-    QUESTION = "question"
-    REQUEST = "request"
-    COMPLAINT = "complaint"
-    GOODBYE = "goodbye"
-    UNKNOWN = "unknown"
-    CLARIFICATION = "clarification"
-    CONFIRMATION = "confirmation"
+# Define Parlant Tools using @p.tool decorator
+if PARLANT_AVAILABLE:
+    @p.tool
+    async def get_account_balance(context: ToolContext) -> ToolResult:
+        """Get the customer's current account balance."""
+        # In production, this would query a real database
+        # using context.customer_id for secure access
 
-
-@dataclass
-class ConversationContext:
-    """Maintains conversation state and context"""
-    user_id: str
-    session_id: str
-    conversation_history: List[Dict[str, Any]] = field(default_factory=list)
-    user_info: Dict[str, Any] = field(default_factory=dict)
-    current_intent: Optional[IntentType] = None
-    waiting_for: Optional[str] = None  # What we're waiting for from user
-    conversation_state: str = "active"
-    last_interaction: float = field(default_factory=time.time)
-    topic_context: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class ConversationTurn:
-    """Represents a single turn in the conversation"""
-    timestamp: float
-    speaker: str  # 'user' or 'agent'
-    message: str
-    intent: Optional[IntentType] = None
-    confidence: float = 0.0
-    entities: Dict[str, Any] = field(default_factory=dict)
-    response_metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-class ConversationalAgent:
-    """Base conversational agent with context management"""
-
-    def __init__(self, agent_name: str = "Assistant"):
-        self.agent_name = agent_name
-        self.contexts: Dict[str, ConversationContext] = {}
-        self.intent_patterns = self._initialize_intent_patterns()
-        self.openai_client = self._setup_openai()
-        self.anthropic_client = self._setup_anthropic()
-
-    def _setup_openai(self) -> Optional[openai.OpenAI]:
-        """Setup OpenAI client for conversation"""
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key:
-            return openai.OpenAI(api_key=api_key)
-        return None
-
-    def _setup_anthropic(self) -> Optional[anthropic.Anthropic]:
-        """Setup Anthropic client for conversation"""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if api_key:
-            return anthropic.Anthropic(api_key=api_key)
-        return None
-
-    def _initialize_intent_patterns(self) -> Dict[IntentType, List[str]]:
-        """Initialize simple intent recognition patterns"""
-        return {
-            IntentType.GREETING: [
-                "hello", "hi", "hey", "good morning", "good afternoon", "good evening", "greetings"
-            ],
-            IntentType.QUESTION: [
-                "what", "how", "when", "where", "why", "who", "can you", "could you", "?"
-            ],
-            IntentType.REQUEST: [
-                "please", "can you help", "i need", "i want", "could you", "help me"
-            ],
-            IntentType.COMPLAINT: [
-                "problem", "issue", "wrong", "error", "not working", "frustrated", "disappointed"
-            ],
-            IntentType.GOODBYE: [
-                "bye", "goodbye", "see you", "thanks", "that's all", "end", "stop"
-            ],
-            IntentType.CONFIRMATION: [
-                "yes", "yeah", "correct", "right", "exactly", "that's right", "confirm"
-            ],
-            IntentType.CLARIFICATION: [
-                "what do you mean", "can you explain", "i don't understand", "clarify", "confused"
-            ]
+        # Simulate fetching balance
+        mock_balances = {
+            "demo_customer": 1250.75,
+            "alice": 3420.50,
+            "bob": 890.25
         }
 
-    def get_or_create_context(self, user_id: str, session_id: str) -> ConversationContext:
-        """Get or create conversation context"""
-        context_key = f"{user_id}_{session_id}"
-        if context_key not in self.contexts:
-            self.contexts[context_key] = ConversationContext(
-                user_id=user_id,
-                session_id=session_id
-            )
-        return self.contexts[context_key]
+        # Secure access using customer_id from context
+        balance = mock_balances.get(context.customer_id, 0.00)
 
-    def classify_intent(self, message: str) -> Tuple[IntentType, float]:
-        """Simple intent classification based on keywords"""
-        message_lower = message.lower()
-
-        intent_scores = {}
-        for intent, patterns in self.intent_patterns.items():
-            score = sum(1 for pattern in patterns if pattern in message_lower)
-            if score > 0:
-                intent_scores[intent] = score / len(patterns)
-
-        if intent_scores:
-            best_intent = max(intent_scores, key=intent_scores.get)
-            confidence = intent_scores[best_intent]
-            return best_intent, confidence
-
-        return IntentType.UNKNOWN, 0.0
-
-    def extract_entities(self, message: str) -> Dict[str, Any]:
-        """Simple entity extraction (in practice, use NER models)"""
-        entities = {}
-
-        # Simple patterns for common entities
-        import re
-
-        # Email extraction
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        emails = re.findall(email_pattern, message)
-        if emails:
-            entities['email'] = emails[0]
-
-        # Phone number extraction (simple pattern)
-        phone_pattern = r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'
-        phones = re.findall(phone_pattern, message)
-        if phones:
-            entities['phone'] = phones[0]
-
-        # Numbers
-        number_pattern = r'\b\d+\b'
-        numbers = re.findall(number_pattern, message)
-        if numbers:
-            entities['numbers'] = [int(n) for n in numbers]
-
-        return entities
-
-    def generate_response_with_openai(self, context: ConversationContext, message: str) -> str:
-        """Generate response using OpenAI"""
-        if not self.openai_client:
-            return "I'm sorry, I'm having trouble connecting to my language model."
-
-        # Build conversation history for context
-        messages = [
-            {
-                "role": "system",
-                "content": f"You are {self.agent_name}, a helpful conversational AI assistant. "
-                          f"Maintain context from previous messages. Be conversational and helpful."
-            }
-        ]
-
-        # Add recent conversation history
-        for turn in context.conversation_history[-5:]:  # Last 5 turns
-            role = "user" if turn['speaker'] == 'user' else "assistant"
-            messages.append({"role": role, "content": turn['message']})
-
-        # Add current message
-        messages.append({"role": "user", "content": message})
-
-        try:
-            response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=messages,
-                max_tokens=200,
-                temperature=0.7
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            return f"I apologize, I'm experiencing technical difficulties: {str(e)}"
-
-    def generate_response_with_anthropic(self, context: ConversationContext, message: str) -> str:
-        """Generate response using Anthropic Claude"""
-        if not self.anthropic_client:
-            return "I'm sorry, I'm having trouble connecting to my language model."
-
-        # Build conversation context
-        conversation_context = ""
-        for turn in context.conversation_history[-5:]:
-            speaker = "Human" if turn['speaker'] == 'user' else "Assistant"
-            conversation_context += f"{speaker}: {turn['message']}\n"
-
-        prompt = f"""You are {self.agent_name}, a helpful conversational AI assistant.
-
-Previous conversation:
-{conversation_context}
-
-Current human message: {message}
-
-Please respond naturally and helpfully, maintaining the conversation context."""
-
-        try:
-            response = self.anthropic_client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=200,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return response.content[0].text.strip()
-        except Exception as e:
-            return f"I apologize, I'm experiencing technical difficulties: {str(e)}"
-
-    def process_conversation_turn(self, user_id: str, session_id: str, message: str,
-                                use_anthropic: bool = False) -> Dict[str, Any]:
-        """Process a complete conversation turn"""
-        # Get or create context
-        context = self.get_or_create_context(user_id, session_id)
-
-        # Update last interaction time
-        context.last_interaction = time.time()
-
-        # Classify intent and extract entities
-        intent, confidence = self.classify_intent(message)
-        entities = self.extract_entities(message)
-
-        # Create conversation turn
-        turn = ConversationTurn(
-            timestamp=time.time(),
-            speaker='user',
-            message=message,
-            intent=intent,
-            confidence=confidence,
-            entities=entities
+        return ToolResult(
+            data=f"Your current account balance is ${balance:.2f}"
         )
 
-        # Add to conversation history
-        context.conversation_history.append({
-            'timestamp': turn.timestamp,
-            'speaker': turn.speaker,
-            'message': turn.message,
-            'intent': turn.intent.value if turn.intent else None,
-            'confidence': turn.confidence,
-            'entities': turn.entities
-        })
 
-        # Update context based on intent
-        context.current_intent = intent
-        self._update_context_from_intent(context, intent, entities)
+    @p.tool
+    async def schedule_appointment(
+        context: ToolContext,
+        date: str,
+        time: str,
+        service_type: str
+    ) -> ToolResult:
+        """Schedule an appointment for a customer."""
+        # In production, this would integrate with a scheduling system
 
-        # Generate response
-        if use_anthropic and self.anthropic_client:
-            response_text = self.generate_response_with_anthropic(context, message)
-        else:
-            response_text = self.generate_response_with_openai(context, message)
+        appointment_id = f"APT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-        # Add agent response to history
-        agent_turn = {
-            'timestamp': time.time(),
-            'speaker': 'agent',
-            'message': response_text,
-            'intent': None,
-            'confidence': 1.0,
-            'entities': {}
-        }
-        context.conversation_history.append(agent_turn)
+        return ToolResult(
+            data={
+                "appointment_id": appointment_id,
+                "date": date,
+                "time": time,
+                "service_type": service_type,
+                "status": "confirmed",
+                "message": f"Appointment {appointment_id} scheduled for {date} at {time} for {service_type}"
+            }
+        )
 
-        return {
-            'response': response_text,
-            'intent': intent.value,
-            'confidence': confidence,
-            'entities': entities,
-            'context_state': context.conversation_state,
-            'session_id': session_id
-        }
 
-    def _update_context_from_intent(self, context: ConversationContext,
-                                   intent: IntentType, entities: Dict[str, Any]):
-        """Update conversation context based on detected intent"""
-        if intent == IntentType.GREETING:
-            context.conversation_state = "greeting"
-        elif intent == IntentType.GOODBYE:
-            context.conversation_state = "ending"
-        elif intent == IntentType.REQUEST:
-            context.waiting_for = "fulfillment"
-        elif intent == IntentType.QUESTION:
-            context.waiting_for = "answer"
-        elif intent == IntentType.COMPLAINT:
-            context.conversation_state = "problem_solving"
-
-        # Update user info with extracted entities
-        if entities:
-            context.user_info.update(entities)
-
-    def get_conversation_summary(self, user_id: str, session_id: str) -> Dict[str, Any]:
-        """Get a summary of the conversation"""
-        context = self.get_or_create_context(user_id, session_id)
-
-        return {
-            'user_id': user_id,
-            'session_id': session_id,
-            'total_turns': len(context.conversation_history),
-            'conversation_state': context.conversation_state,
-            'current_intent': context.current_intent.value if context.current_intent else None,
-            'user_info': context.user_info,
-            'last_interaction': context.last_interaction,
-            'session_duration': time.time() - (context.conversation_history[0]['timestamp'] if context.conversation_history else time.time())
+    @p.tool
+    async def get_order_status(
+        context: ToolContext,
+        order_id: str
+    ) -> ToolResult:
+        """Check the status of a customer order."""
+        # Simulate order lookup
+        mock_orders = {
+            "ORD-001": {
+                "status": "shipped",
+                "tracking": "TRK123456",
+                "estimated_delivery": "2025-10-05"
+            },
+            "ORD-002": {
+                "status": "processing",
+                "tracking": None,
+                "estimated_delivery": "2025-10-08"
+            }
         }
 
+        order = mock_orders.get(order_id)
 
-class CustomerServiceAgent(ConversationalAgent):
-    """Specialized customer service conversational agent"""
+        if not order:
+            return ToolResult(
+                data=f"Order {order_id} not found. Please check the order number."
+            )
 
-    def __init__(self):
-        super().__init__("Customer Service Agent")
-        self.knowledge_base = self._initialize_knowledge_base()
+        message = f"Order {order_id} is currently {order['status']}."
+        if order['tracking']:
+            message += f" Tracking number: {order['tracking']}."
+        if order['estimated_delivery']:
+            message += f" Estimated delivery: {order['estimated_delivery']}."
 
-    def _initialize_knowledge_base(self) -> Dict[str, str]:
-        """Initialize simple knowledge base for customer service"""
-        return {
-            'hours': "Our customer service hours are Monday-Friday 9AM-6PM EST.",
-            'return_policy': "You can return items within 30 days of purchase with receipt.",
-            'shipping': "Standard shipping takes 3-5 business days. Express shipping takes 1-2 days.",
-            'payment': "We accept all major credit cards, PayPal, and bank transfers.",
-            'contact': "You can reach us at support@company.com or call 1-800-SUPPORT.",
-            'warranty': "All products come with a 1-year manufacturer warranty.",
-            'tracking': "You can track your order using the tracking number sent to your email."
+        return ToolResult(data=message)
+
+
+    @p.tool
+    async def transfer_to_human(context: ToolContext, reason: str) -> ToolResult:
+        """Transfer the conversation to a human agent."""
+        # Set agent to manual mode to stop automatic responses
+        return ToolResult(
+            data=f"Transferring you to a human agent. Reason: {reason}",
+            control={"mode": "manual"}  # Stops automatic agent responses
+        )
+
+
+    @p.tool
+    async def get_business_hours(context: ToolContext) -> ToolResult:
+        """Get business hours information."""
+        hours = {
+            "Monday-Friday": "9:00 AM - 6:00 PM EST",
+            "Saturday": "10:00 AM - 4:00 PM EST",
+            "Sunday": "Closed"
         }
 
-    def search_knowledge_base(self, query: str) -> Optional[str]:
-        """Search knowledge base for relevant information"""
-        query_lower = query.lower()
-        for key, value in self.knowledge_base.items():
-            if key in query_lower:
-                return value
-        return None
-
-    def generate_response_with_openai(self, context: ConversationContext, message: str) -> str:
-        """Enhanced response generation with knowledge base integration"""
-        # First check knowledge base
-        kb_response = self.search_knowledge_base(message)
-
-        if kb_response:
-            return f"{kb_response} Is there anything else I can help you with?"
-
-        # Otherwise use standard response generation
-        return super().generate_response_with_openai(context, message)
+        return ToolResult(data=hours)
 
 
-class PersonalAssistantAgent(ConversationalAgent):
-    """Personal assistant specialized conversational agent"""
+    @p.tool
+    async def submit_feedback(
+        context: ToolContext,
+        rating: int,
+        comments: Optional[str] = None
+    ) -> ToolResult:
+        """Submit customer feedback."""
+        # Validate rating
+        if rating < 1 or rating > 5:
+            return ToolResult(
+                data="Please provide a rating between 1 and 5 stars."
+            )
 
-    def __init__(self):
-        super().__init__("Personal Assistant")
-        self.capabilities = [
-            "scheduling", "reminders", "weather", "calculations",
-            "general questions", "recommendations"
-        ]
+        feedback_id = f"FB-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-    def process_conversation_turn(self, user_id: str, session_id: str, message: str,
-                                use_anthropic: bool = False) -> Dict[str, Any]:
-        """Enhanced processing with assistant-specific features"""
-        result = super().process_conversation_turn(user_id, session_id, message, use_anthropic)
+        message = f"Thank you for your {rating}-star rating!"
+        if comments:
+            message += f" Your feedback has been recorded (ID: {feedback_id})."
 
-        # Add capability suggestions if user seems confused
-        if result['intent'] == 'unknown':
-            result['response'] += f"\n\nI can help with: {', '.join(self.capabilities[:3])}. What would you like to do?"
-
-        return result
-
-
-# Demonstration Functions
-def demonstrate_basic_conversation():
-    """Demonstrate basic conversation flow"""
-    print("\n" + "="*50)
-    print("💬 BASIC CONVERSATION DEMO")
-    print("="*50)
-
-    agent = ConversationalAgent("Demo Assistant")
-    user_id = "demo_user"
-    session_id = "session_001"
-
-    conversation_flow = [
-        "Hello there!",
-        "What can you help me with?",
-        "I have a question about your services",
-        "What are your hours?",
-        "Thank you for your help",
-        "Goodbye!"
-    ]
-
-    print("Starting conversation simulation...\n")
-
-    for i, message in enumerate(conversation_flow):
-        print(f"👤 User: {message}")
-
-        try:
-            result = agent.process_conversation_turn(user_id, session_id, message)
-            print(f"🤖 Agent: {result['response']}")
-            print(f"   Intent: {result['intent']} (confidence: {result['confidence']:.2f})")
-            if result['entities']:
-                print(f"   Entities: {result['entities']}")
-        except Exception as e:
-            print(f"🤖 Agent: I'm sorry, I encountered an error: {e}")
-
-        print()
-        time.sleep(1)  # Simulate conversation pacing
-
-    # Show conversation summary
-    summary = agent.get_conversation_summary(user_id, session_id)
-    print("📊 Conversation Summary:")
-    print(f"   Total turns: {summary['total_turns']}")
-    print(f"   Final state: {summary['conversation_state']}")
-    print(f"   Session duration: {summary['session_duration']:.1f} seconds")
+        return ToolResult(data=message)
 
 
-def demonstrate_customer_service():
-    """Demonstrate customer service agent"""
-    print("\n" + "="*50)
-    print("🛎️ CUSTOMER SERVICE DEMO")
-    print("="*50)
+async def demonstrate_basic_agent():
+    """Demonstrate basic Parlant agent setup"""
 
-    agent = CustomerServiceAgent()
-    user_id = "customer_123"
-    session_id = "support_001"
+    print("\n🤖 Basic Parlant Agent Demo")
+    print("=" * 50)
 
-    service_queries = [
-        "Hi, I need help with a return",
-        "What are your return policies?",
-        "How long does shipping usually take?",
-        "What payment methods do you accept?"
-    ]
+    if not PARLANT_AVAILABLE:
+        print("❌ Parlant SDK not available")
+        return
 
-    for query in service_queries:
-        print(f"👤 Customer: {query}")
+    print("\n💡 Parlant Agent Concepts:")
+    print("1. Server: Central management for agents and customers")
+    print("2. Agent: AI entity with specific behavior and capabilities")
+    print("3. Customer: User interacting with the agent")
+    print("4. Session: Conversation instance between agent and customer")
+    print("5. Tools: Functions the agent can call to perform actions")
+    print("6. Guidelines: Rules governing agent behavior")
 
-        try:
-            result = agent.process_conversation_turn(user_id, session_id, query)
-            print(f"🛎️ Support: {result['response']}")
-            print(f"   Intent: {result['intent']}")
-        except Exception as e:
-            print(f"🛎️ Support: I apologize for the technical difficulty: {e}")
+    print("\n📝 Agent Creation Example:")
+    print("""
+async with p.Server(nlp_service=NLPServices.openai) as server:
+    # Create an agent
+    agent = await server.create_agent(
+        name="Customer Service Agent",
+        description="Helpful, professional agent for customer support"
+    )
 
-        print()
+    # Attach tools to agent
+    await agent.attach_tool(
+        condition="when customer asks about account balance",
+        tool=get_account_balance
+    )
 
+    # Create a customer
+    customer = await server.create_customer(
+        name="Alice",
+        metadata={"account_type": "premium"}
+    )
 
-def demonstrate_context_management():
-    """Demonstrate conversation context and memory"""
-    print("\n" + "="*50)
-    print("🧠 CONTEXT MANAGEMENT DEMO")
-    print("="*50)
+    # Create a session
+    session = await client.sessions.create(
+        agent_id=agent.id,
+        customer_id=customer.id
+    )
 
-    agent = PersonalAssistantAgent()
-    user_id = "context_user"
-    session_id = "context_session"
+    # Send a message
+    await client.sessions.create_event(
+        session_id=session.id,
+        kind="message",
+        source="customer",
+        message="What's my account balance?"
+    )
 
-    # Multi-turn conversation that builds context
-    context_conversation = [
-        "My name is Alice and I work at TechCorp",
-        "I need to schedule a meeting for next week",
-        "The meeting is about the quarterly review",
-        "Can you remind me what we discussed about my name earlier?",
-        "What company did I mention I work for?"
-    ]
-
-    print("Demonstrating context preservation across turns...\n")
-
-    for message in context_conversation:
-        print(f"👤 Alice: {message}")
-
-        try:
-            result = agent.process_conversation_turn(user_id, session_id, message)
-            print(f"🤖 Assistant: {result['response']}")
-
-            # Show extracted entities if any
-            if result['entities']:
-                print(f"   📝 Extracted: {result['entities']}")
-        except Exception as e:
-            print(f"🤖 Assistant: I'm having trouble processing that: {e}")
-
-        print()
-
-    # Show final context state
-    context = agent.get_or_create_context(user_id, session_id)
-    print("📋 Final Context State:")
-    print(f"   User info collected: {context.user_info}")
-    print(f"   Current intent: {context.current_intent}")
-    print(f"   Conversation state: {context.conversation_state}")
+    # Agent automatically responds using tools!
+    """)
 
 
-def demonstrate_intent_classification():
-    """Demonstrate intent recognition capabilities"""
-    print("\n" + "="*50)
-    print("🎯 INTENT CLASSIFICATION DEMO")
-    print("="*50)
+async def demonstrate_tool_integration():
+    """Demonstrate Parlant tool integration patterns"""
 
-    agent = ConversationalAgent()
+    print("\n🔧 Parlant Tool Integration Demo")
+    print("=" * 50)
 
-    test_messages = [
-        "Hello! How are you doing today?",
-        "What time does the store close?",
-        "Can you please help me find my order?",
-        "I'm having trouble with my account login",
-        "Thanks for your help, goodbye!",
-        "Yes, that's exactly what I meant",
-        "I don't understand what you're asking"
-    ]
+    print("\n💡 Tool Definition Patterns:")
+    print("""
+# 1. Basic tool
+@p.tool
+async def my_tool(context: ToolContext) -> ToolResult:
+    return ToolResult(data="result")
 
-    print("Testing intent classification on various messages:\n")
+# 2. Tool with parameters
+@p.tool
+async def search_products(
+    context: ToolContext,
+    query: str,
+    category: Optional[str] = None
+) -> ToolResult:
+    results = await DB.search(query, category)
+    return ToolResult(data=results)
 
-    for message in test_messages:
-        intent, confidence = agent.classify_intent(message)
-        print(f"Message: '{message}'")
-        print(f"Intent: {intent.value} (confidence: {confidence:.2f})")
-        print()
+# 3. Tool with parameter source control
+from typing import Annotated
+
+@p.tool
+async def transfer_money(
+    context: ToolContext,
+    amount: Annotated[float, p.ToolParameterOptions(
+        source="customer"  # Must come from customer, not agent inference
+    )],
+    recipient: Annotated[str, p.ToolParameterOptions(
+        source="customer"
+    )]
+) -> ToolResult:
+    # Process transfer...
+    return ToolResult(data="Transfer completed")
+
+# 4. Tool with access to server objects
+@p.tool
+async def get_customer_info(context: ToolContext) -> ToolResult:
+    server = p.ToolContextAccessor(context).server
+
+    # Access current agent
+    agent = await server.get_agent(id=context.agent_id)
+
+    # Access current customer
+    customer = await server.get_customer(id=context.customer_id)
+
+    return ToolResult(data=customer.metadata)
+    """)
+
+
+async def demonstrate_session_management():
+    """Demonstrate session and event management"""
+
+    print("\n💬 Session Management Demo")
+    print("=" * 50)
+
+    print("\n💡 Session Lifecycle:")
+    print("""
+# 1. Create session
+session = await client.sessions.create(
+    agent_id=agent_id,
+    customer_id=customer_id,
+    title="Support Session"
+)
+
+# 2. Send customer message
+await client.sessions.create_event(
+    session_id=session.id,
+    kind="message",
+    source="customer",
+    message="I need help with my order"
+)
+
+# 3. Poll for agent responses
+new_events = await client.sessions.list_events(
+    session_id=session.id,
+    min_offset=last_offset,
+    wait_for_data=60  # Wait up to 60 seconds
+)
+
+# 4. Process events
+for event in new_events:
+    if event.kind == "message" and event.source == "ai_agent":
+        print(f"Agent: {event.data['message']}")
+    elif event.kind == "tool":
+        # Tool was called
+        tool_result = event.data['tool_calls'][0]['result']
+        print(f"Tool result: {tool_result}")
+    """)
+
+
+async def demonstrate_guidelines():
+    """Demonstrate agent guidelines and behavior control"""
+
+    print("\n📋 Agent Guidelines Demo")
+    print("=" * 50)
+
+    print("\n💡 Guideline Patterns:")
+    print("""
+# 1. Condition-based guidelines
+await agent.create_guideline(
+    condition="when customer is frustrated or angry",
+    action="be extra empathetic and apologize for inconvenience"
+)
+
+# 2. Tool-based guidelines
+await agent.create_guideline(
+    condition="when customer asks about account balance",
+    action="use the get_account_balance tool",
+    tools=[get_account_balance]
+)
+
+# 3. Journey guidelines (conversation flow)
+await agent.create_guideline(
+    condition="when customer wants to schedule appointment",
+    action="ask for preferred date, time, and service type, then schedule"
+)
+
+# 4. Escalation guidelines
+await agent.create_guideline(
+    condition="when issue cannot be resolved or customer explicitly requests human",
+    action="transfer to human agent",
+    tools=[transfer_to_human]
+)
+
+# 5. Simpler tool attachment
+await agent.attach_tool(
+    condition="when customer needs order status",
+    tool=get_order_status
+)
+    """)
+
+
+async def demonstrate_customer_management():
+    """Demonstrate customer entity management"""
+
+    print("\n👤 Customer Management Demo")
+    print("=" * 50)
+
+    print("\n💡 Customer Patterns:")
+    print("""
+# 1. Create customer with metadata
+customer = await server.create_customer(
+    name="Alice Smith",
+    metadata={
+        "external_id": "USER-12345",
+        "account_type": "premium",
+        "location": "USA",
+        "preferences": {"language": "en", "notifications": True}
+    }
+)
+
+# 2. Access customer in tool
+@p.tool
+async def get_customer_location(context: ToolContext) -> ToolResult:
+    server = p.ToolContextAccessor(context).server
+    customer = await server.find_customer(id=context.customer_id)
+
+    location = customer.metadata.get("location", "Unknown")
+    return ToolResult(data=f"Customer location: {location}")
+
+# 3. Secure data access
+@p.tool
+async def get_transactions(context: ToolContext) -> ToolResult:
+    # SECURE: Uses customer_id from context (authenticated)
+    transactions = await DB.get_transactions(context.customer_id)
+    return ToolResult(data=transactions)
+
+    # INSECURE: Do NOT do this
+    # name = arguments.get("customer_name")
+    # transactions = await DB.get_by_name(name)  # Security risk!
+    """)
+
+
+async def demonstrate_production_setup():
+    """Demonstrate production-ready setup"""
+
+    print("\n🚀 Production Setup Demo")
+    print("=" * 50)
+
+    print("\n💡 Complete Production Example:")
+    print("""
+import parlant.sdk as p
+from parlant.sdk import NLPServices
+
+async def setup_production_agent():
+    # 1. Initialize server with NLP service
+    async with p.Server(
+        nlp_service=NLPServices.openai  # or vertex, anthropic
+    ) as server:
+
+        # 2. Create agent
+        agent = await server.create_agent(
+            name="Customer Support Agent",
+            description="Professional, empathetic support agent"
+        )
+
+        # 3. Add guidelines
+        await agent.create_guideline(
+            condition="always be polite and professional",
+            action="maintain friendly tone and show empathy"
+        )
+
+        await agent.create_guideline(
+            condition="when customer provides account info",
+            action="verify identity before accessing sensitive data"
+        )
+
+        # 4. Attach tools
+        await agent.attach_tool(
+            condition="when customer asks about balance",
+            tool=get_account_balance
+        )
+
+        await agent.attach_tool(
+            condition="when customer wants to schedule",
+            tool=schedule_appointment
+        )
+
+        await agent.attach_tool(
+            condition="when issue requires human intervention",
+            tool=transfer_to_human
+        )
+
+        # 5. Create customers as needed
+        customer = await server.create_customer(
+            name="Customer Name",
+            metadata={"source": "web", "account_id": "ACC123"}
+        )
+
+        # 6. Create session for interaction
+        # (This would typically happen in your API endpoint)
+
+        return agent, customer
+
+# In your web application:
+# - Customer visits chat interface
+# - Create session with agent
+# - Stream messages back and forth
+# - Agent uses tools automatically based on guidelines
+    """)
 
 
 def main():
     """Main demonstration function"""
-    print("🗣️ Parlant Basics - Conversational AI Framework")
+    print("🗣️ Parlant Basics - Official SDK Implementation")
     print("=" * 60)
 
-    print("\nKey Features Demonstrated:")
-    print("• Conversation context management")
-    print("• Intent classification and entity extraction")
-    print("• Multi-turn dialogue handling")
-    print("• Specialized agent types (customer service, personal assistant)")
-    print("• Memory and state preservation")
+    if not PARLANT_AVAILABLE:
+        print("\n❌ Parlant SDK not installed")
+        print("\nInstall Parlant:")
+        print("  pip install parlant")
+        print("\nOr check official docs:")
+        print("  https://parlant.io")
+        print("  https://github.com/emcie-co/parlant")
+        return
 
-    # Check API setup
-    openai_available = bool(os.getenv("OPENAI_API_KEY"))
-    anthropic_available = bool(os.getenv("ANTHROPIC_API_KEY"))
+    print("\n✅ Parlant SDK available")
+    print("\n📚 Key Concepts:")
+    print("• Server: Central management for agents and customers")
+    print("• Agents: AI entities with specific behaviors")
+    print("• Tools: Functions agents can call (@p.tool)")
+    print("• Guidelines: Rules governing agent behavior")
+    print("• Sessions: Conversation instances")
+    print("• Customers: Users with metadata")
 
-    print(f"\nAPI Availability:")
-    print(f"• OpenAI: {'✅' if openai_available else '❌'}")
-    print(f"• Anthropic: {'✅' if anthropic_available else '❌'}")
+    # Run async demonstrations
+    asyncio.run(demonstrate_basic_agent())
+    asyncio.run(demonstrate_tool_integration())
+    asyncio.run(demonstrate_session_management())
+    asyncio.run(demonstrate_guidelines())
+    asyncio.run(demonstrate_customer_management())
+    asyncio.run(demonstrate_production_setup())
 
-    if not (openai_available or anthropic_available):
-        print("\n⚠️ No API keys configured - responses will be limited")
+    print("\n" + "=" * 60)
+    print("🎉 Parlant Basics Demo Complete!")
 
-    try:
-        # Run demonstrations
-        demonstrate_intent_classification()
-        demonstrate_basic_conversation()
-        demonstrate_customer_service()
-        demonstrate_context_management()
+    print("\n🔑 Key Takeaways:")
+    print("1. Use @p.tool decorator for all agent tools")
+    print("2. Tools receive ToolContext with customer/agent IDs")
+    print("3. Guidelines connect conditions to actions/tools")
+    print("4. Sessions manage conversation state automatically")
+    print("5. Customer metadata enables personalization")
+    print("6. Secure tool access using context.customer_id")
 
-        print("\n" + "="*60)
-        print("🎉 Parlant Basics Demo Complete!")
+    print("\n📖 Learn More:")
+    print("• Official Docs: https://parlant.io")
+    print("• GitHub: https://github.com/emcie-co/parlant")
+    print("• Examples: docs/quickstart/examples.md")
 
-        print("\nKey Concepts Learned:")
-        print("• Conversation state management across multiple turns")
-        print("• Intent recognition for understanding user goals")
-        print("• Entity extraction for capturing important information")
-        print("• Context preservation for maintaining conversation memory")
-        print("• Specialized agents for domain-specific conversations")
-
-        print("\nProduction Considerations:")
-        print("• Use proper NLP models for intent classification")
-        print("• Implement robust entity recognition (NER)")
-        print("• Add conversation analytics and monitoring")
-        print("• Handle edge cases and fallback scenarios")
-        print("• Scale context storage for multiple concurrent users")
-
-        print("\nNext: Run dialogue_management.py for advanced conversation flows")
-
-    except KeyboardInterrupt:
-        print("\n\n👋 Demo interrupted by user")
-    except Exception as e:
-        print(f"\n❌ Error during demo: {e}")
-        print("Make sure you have the required packages installed:")
-        print("• pip install openai anthropic python-dotenv")
+    print("\n➡️  Next: Run dialogue_management.py for advanced patterns")
 
 
 if __name__ == "__main__":

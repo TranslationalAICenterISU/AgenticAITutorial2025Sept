@@ -28,6 +28,9 @@ torch>=2.0.0
 # DSPy
 dspy-ai>=2.4.0
 
+# Parlant
+parlant>=0.1.0  # Conversational AI framework
+
 # Additional utilities
 requests>=2.31.0
 pydantic>=2.5.0
@@ -79,13 +82,11 @@ litellm>=1.0.0  # Unified API for local models
 instructor>=0.4.0  # Structured outputs
 
 # Model Context Protocol (MCP)
-# Note: MCP is evolving - check https://github.com/modelcontextprotocol for latest packages
-mcp>=0.1.0  # MCP SDK (when available)
-asyncio-mqtt>=0.11.0  # For MCP transport layers
-websockets>=11.0  # WebSocket transport
-aiohttp>=3.8.0  # HTTP transport
+# Official MCP Python SDK from modelcontextprotocol/python-sdk
+mcp>=1.0.0
 psutil>=5.9.0  # System information tools
 
-# Additional protocol support
-json-rpc>=1.15.0  # JSON-RPC implementation
-pydantic>=2.5.0  # Data validation for MCP messages
+# Protocol dependencies (already included above)
+websockets>=11.0  # WebSocket transport
+aiohttp>=3.8.0  # HTTP transport
+pydantic>=2.5.0  # Data validation

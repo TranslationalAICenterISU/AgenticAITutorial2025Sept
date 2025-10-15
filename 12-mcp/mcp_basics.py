@@ -1,597 +1,290 @@
 """
-Model Context Protocol (MCP) Basics
+Model Context Protocol (MCP) Basics - Using Official SDK
 Introduction to building MCP servers and clients for agent tool integration
 """
 
 import asyncio
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
-from dataclasses import dataclass, asdict
-from abc import ABC, abstractmethod
-import uuid
-import time
+import platform
 from pathlib import Path
+from typing import Any
 
-# Since MCP is still evolving, this is an educational implementation
-# showing the core concepts and patterns
+# Official MCP Python SDK imports
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp import types
+from mcp.client.session import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
-
-@dataclass
-class MCPResource:
-    """Represents an MCP resource"""
-    uri: str
-    name: str
-    description: str
-    mimeType: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-
-
-@dataclass
-class MCPTool:
-    """Represents an MCP tool"""
-    name: str
-    description: str
-    inputSchema: Dict[str, Any]
-    metadata: Optional[Dict[str, Any]] = None
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-@dataclass
-class MCPPrompt:
-    """Represents an MCP prompt template"""
-    name: str
-    description: str
-    arguments: Optional[List[Dict[str, Any]]] = None
+def create_demo_server() -> Server:
+    """Create a demo MCP server with resources, tools, and prompts"""
 
+    server = Server("demo-server")
 
-@dataclass
-class MCPMessage:
-    """Base MCP message structure"""
-    jsonrpc: str = "2.0"
-    id: Optional[Union[str, int]] = None
-    method: Optional[str] = None
-    params: Optional[Dict[str, Any]] = None
-    result: Optional[Any] = None
-    error: Optional[Dict[str, Any]] = None
+    # Define resources
+    @server.list_resources()
+    async def handle_list_resources() -> list[types.Resource]:
+        """List available resources"""
+        return [
+            types.Resource(
+                uri="file://demo.txt",
+                name="Demo File",
+                description="A demonstration text file",
+                mimeType="text/plain"
+            ),
+            types.Resource(
+                uri="config://app-settings",
+                name="App Settings",
+                description="Application configuration",
+                mimeType="application/json"
+            )
+        ]
 
-
-class MCPServer:
-    """Basic MCP Server implementation"""
-
-    def __init__(self, name: str, version: str = "1.0.0"):
-        self.name = name
-        self.version = version
-        self.resources: Dict[str, MCPResource] = {}
-        self.tools: Dict[str, MCPTool] = {}
-        self.prompts: Dict[str, MCPPrompt] = {}
-        self.request_handlers = {
-            "initialize": self.handle_initialize,
-            "resources/list": self.handle_list_resources,
-            "resources/read": self.handle_read_resource,
-            "tools/list": self.handle_list_tools,
-            "tools/call": self.handle_call_tool,
-            "prompts/list": self.handle_list_prompts,
-            "prompts/get": self.handle_get_prompt,
-        }
-        self.logger = logging.getLogger(f"mcp.server.{name}")
-
-    def add_resource(self, resource: MCPResource):
-        """Add a resource to the server"""
-        self.resources[resource.uri] = resource
-        self.logger.info(f"Added resource: {resource.name} ({resource.uri})")
-
-    def add_tool(self, tool: MCPTool, handler=None):
-        """Add a tool to the server"""
-        self.tools[tool.name] = tool
-        if handler:
-            self.request_handlers[f"tool:{tool.name}"] = handler
-        self.logger.info(f"Added tool: {tool.name}")
-
-    def add_prompt(self, prompt: MCPPrompt):
-        """Add a prompt template to the server"""
-        self.prompts[prompt.name] = prompt
-        self.logger.info(f"Added prompt: {prompt.name}")
-
-    async def handle_request(self, message: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle incoming MCP request"""
-        try:
-            method = message.get("method")
-            params = message.get("params", {})
-            request_id = message.get("id")
-
-            self.logger.debug(f"Handling request: {method}")
-
-            if method in self.request_handlers:
-                result = await self.request_handlers[method](params)
-                return {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": result
-                }
-            else:
-                return {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {
-                        "code": -32601,
-                        "message": f"Method not found: {method}"
-                    }
-                }
-
-        except Exception as e:
-            self.logger.error(f"Error handling request: {e}")
-            return {
-                "jsonrpc": "2.0",
-                "id": message.get("id"),
-                "error": {
-                    "code": -32603,
-                    "message": f"Internal error: {str(e)}"
-                }
-            }
-
-    async def handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle initialization request"""
-        return {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {
-                "resources": {"subscribe": False, "listChanged": False},
-                "tools": {"listChanged": False},
-                "prompts": {"listChanged": False},
-                "logging": {}
-            },
-            "serverInfo": {
-                "name": self.name,
-                "version": self.version
-            }
-        }
-
-    async def handle_list_resources(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle list resources request"""
-        return {
-            "resources": [asdict(resource) for resource in self.resources.values()]
-        }
-
-    async def handle_read_resource(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle read resource request"""
-        uri = params.get("uri")
-        if uri not in self.resources:
+    @server.read_resource()
+    async def handle_read_resource(uri: str) -> str:
+        """Read a specific resource"""
+        if uri == "file://demo.txt":
+            return "This is demo content from the MCP server."
+        elif uri == "config://app-settings":
+            return json.dumps({
+                "app_name": "MCP Demo",
+                "version": "1.0.0",
+                "features": ["resources", "tools", "prompts"]
+            }, indent=2)
+        else:
             raise ValueError(f"Resource not found: {uri}")
 
-        # This is where you'd actually read the resource content
-        # For demo purposes, we'll return mock content
-        content = await self._read_resource_content(uri)
-
-        return {
-            "contents": [{
-                "uri": uri,
-                "mimeType": self.resources[uri].mimeType or "text/plain",
-                "text": content
-            }]
-        }
-
-    async def handle_list_tools(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle list tools request"""
-        return {
-            "tools": [asdict(tool) for tool in self.tools.values()]
-        }
-
-    async def handle_call_tool(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle tool call request"""
-        name = params.get("name")
-        arguments = params.get("arguments", {})
-
-        if name not in self.tools:
-            raise ValueError(f"Tool not found: {name}")
-
-        # Execute the tool
-        result = await self._execute_tool(name, arguments)
-
-        return {
-            "content": [{
-                "type": "text",
-                "text": str(result)
-            }],
-            "isError": False
-        }
-
-    async def handle_list_prompts(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle list prompts request"""
-        return {
-            "prompts": [asdict(prompt) for prompt in self.prompts.values()]
-        }
-
-    async def handle_get_prompt(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle get prompt request"""
-        name = params.get("name")
-        arguments = params.get("arguments", {})
-
-        if name not in self.prompts:
-            raise ValueError(f"Prompt not found: {name}")
-
-        # Generate the prompt with arguments
-        prompt_content = await self._generate_prompt(name, arguments)
-
-        return {
-            "description": self.prompts[name].description,
-            "messages": [{
-                "role": "user",
-                "content": {
-                    "type": "text",
-                    "text": prompt_content
+    # Define tools
+    @server.list_tools()
+    async def handle_list_tools() -> list[types.Tool]:
+        """List available tools"""
+        return [
+            types.Tool(
+                name="calculator",
+                description="Perform mathematical calculations",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "expression": {
+                            "type": "string",
+                            "description": "Math expression to evaluate"
+                        }
+                    },
+                    "required": ["expression"]
                 }
-            }]
-        }
+            ),
+            types.Tool(
+                name="system_info",
+                description="Get system information",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            )
+        ]
 
-    async def _read_resource_content(self, uri: str) -> str:
-        """Read resource content (implement based on resource type)"""
-        resource = self.resources[uri]
+    @server.call_tool()
+    async def handle_call_tool(
+        name: str,
+        arguments: dict[str, Any]
+    ) -> list[types.TextContent]:
+        """Execute a tool"""
 
-        if uri.startswith("file://"):
-            # File system resource
-            file_path = uri[7:]  # Remove file:// prefix
-            try:
-                with open(file_path, 'r') as f:
-                    return f.read()
-            except Exception as e:
-                return f"Error reading file: {e}"
-
-        elif uri.startswith("config://"):
-            # Configuration resource
-            return f"Configuration data for {resource.name}"
-
-        else:
-            # Mock content for other resources
-            return f"Mock content for resource: {resource.name}"
-
-    async def _execute_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
-        """Execute a tool (implement tool-specific logic)"""
         if name == "calculator":
             expression = arguments.get("expression", "")
             try:
                 # Simple eval for demo - use safe math library in production
-                result = eval(expression)
-                return f"Result: {result}"
+                result = eval(expression, {"__builtins__": {}}, {})
+                return [types.TextContent(
+                    type="text",
+                    text=f"Result: {result}"
+                )]
             except Exception as e:
-                return f"Error: {e}"
-
-        elif name == "file_reader":
-            filepath = arguments.get("path", "")
-            try:
-                with open(filepath, 'r') as f:
-                    content = f.read()
-                return f"File content ({len(content)} chars):\\n{content[:500]}..."
-            except Exception as e:
-                return f"Error reading file: {e}"
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: {str(e)}"
+                )]
 
         elif name == "system_info":
-            import platform
-            import psutil
-            info = {
-                "platform": platform.system(),
-                "cpu_count": psutil.cpu_count(),
-                "memory_gb": round(psutil.virtual_memory().total / (1024**3), 2),
-                "disk_gb": round(psutil.disk_usage('/').total / (1024**3), 2)
-            }
-            return json.dumps(info, indent=2)
+            try:
+                import psutil
+                info = {
+                    "platform": platform.system(),
+                    "cpu_count": psutil.cpu_count(),
+                    "memory_gb": round(psutil.virtual_memory().total / (1024**3), 2),
+                    "disk_gb": round(psutil.disk_usage('/').total / (1024**3), 2)
+                }
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps(info, indent=2)
+                )]
+            except ImportError:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: psutil not installed. Install with: pip install psutil"
+                )]
+            except Exception as e:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: {str(e)}"
+                )]
 
         else:
-            return f"Tool '{name}' executed with arguments: {arguments}"
+            raise ValueError(f"Unknown tool: {name}")
 
-    async def _generate_prompt(self, name: str, arguments: Dict[str, Any]) -> str:
-        """Generate prompt content with arguments"""
-        prompt = self.prompts[name]
+    # Define prompts
+    @server.list_prompts()
+    async def handle_list_prompts() -> list[types.Prompt]:
+        """List available prompts"""
+        return [
+            types.Prompt(
+                name="code_review",
+                description="Review code for quality and issues",
+                arguments=[
+                    types.PromptArgument(
+                        name="code",
+                        description="Code to review",
+                        required=True
+                    ),
+                    types.PromptArgument(
+                        name="language",
+                        description="Programming language",
+                        required=False
+                    )
+                ]
+            ),
+            types.Prompt(
+                name="summarize",
+                description="Summarize text content",
+                arguments=[
+                    types.PromptArgument(
+                        name="text",
+                        description="Text to summarize",
+                        required=True
+                    ),
+                    types.PromptArgument(
+                        name="max_length",
+                        description="Maximum length in words",
+                        required=False
+                    )
+                ]
+            )
+        ]
+
+    @server.get_prompt()
+    async def handle_get_prompt(
+        name: str,
+        arguments: dict[str, str] | None
+    ) -> types.GetPromptResult:
+        """Get a specific prompt"""
+        args = arguments or {}
 
         if name == "code_review":
-            code = arguments.get("code", "")
-            language = arguments.get("language", "python")
-            return f"Please review this {language} code:\\n\\n```{language}\\n{code}\\n```\\n\\nProvide feedback on code quality, potential issues, and suggestions for improvement."
-
+            code = args.get("code", "")
+            language = args.get("language", "python")
+            prompt_text = (
+                f"Please review this {language} code:\n\n"
+                f"```{language}\n{code}\n```\n\n"
+                "Provide feedback on code quality, potential issues, "
+                "and suggestions for improvement."
+            )
         elif name == "summarize":
-            text = arguments.get("text", "")
-            max_length = arguments.get("max_length", 100)
-            return f"Please summarize the following text in no more than {max_length} words:\\n\\n{text}"
-
+            text = args.get("text", "")
+            max_length = args.get("max_length", "100")
+            prompt_text = (
+                f"Please summarize the following text in no more than "
+                f"{max_length} words:\n\n{text}"
+            )
         else:
-            return f"Prompt '{name}' with arguments: {arguments}"
+            raise ValueError(f"Unknown prompt: {name}")
+
+        return types.GetPromptResult(
+            description=f"Generated {name} prompt",
+            messages=[
+                types.PromptMessage(
+                    role="user",
+                    content=types.TextContent(
+                        type="text",
+                        text=prompt_text
+                    )
+                )
+            ]
+        )
+
+    return server
 
 
-class MCPClient:
-    """Basic MCP Client implementation"""
+def create_filesystem_server(base_path: str = ".") -> Server:
+    """Create an MCP server for filesystem access"""
 
-    def __init__(self, name: str):
-        self.name = name
-        self.server_capabilities = None
-        self.next_id = 1
-        self.logger = logging.getLogger(f"mcp.client.{name}")
+    server = Server("filesystem-server")
+    base = Path(base_path).resolve()
 
-    def get_next_id(self) -> int:
-        """Get next request ID"""
-        current_id = self.next_id
-        self.next_id += 1
-        return current_id
-
-    async def initialize(self, server: MCPServer) -> Dict[str, Any]:
-        """Initialize connection with server"""
-        request = {
-            "jsonrpc": "2.0",
-            "id": self.get_next_id(),
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {
-                    "roots": {"listChanged": False},
-                    "sampling": {}
-                },
-                "clientInfo": {
-                    "name": self.name,
-                    "version": "1.0.0"
-                }
-            }
-        }
-
-        response = await server.handle_request(request)
-        if "error" in response:
-            raise Exception(f"Initialization failed: {response['error']}")
-
-        self.server_capabilities = response["result"]["capabilities"]
-        self.logger.info("Client initialized successfully")
-        return response["result"]
-
-    async def list_resources(self, server: MCPServer) -> List[MCPResource]:
-        """List available resources"""
-        request = {
-            "jsonrpc": "2.0",
-            "id": self.get_next_id(),
-            "method": "resources/list"
-        }
-
-        response = await server.handle_request(request)
-        if "error" in response:
-            raise Exception(f"List resources failed: {response['error']}")
-
+    @server.list_resources()
+    async def handle_list_resources() -> list[types.Resource]:
+        """List Python files as resources"""
         resources = []
-        for res_data in response["result"]["resources"]:
-            resources.append(MCPResource(**res_data))
-        return resources
-
-    async def read_resource(self, server: MCPServer, uri: str) -> str:
-        """Read a resource"""
-        request = {
-            "jsonrpc": "2.0",
-            "id": self.get_next_id(),
-            "method": "resources/read",
-            "params": {"uri": uri}
-        }
-
-        response = await server.handle_request(request)
-        if "error" in response:
-            raise Exception(f"Read resource failed: {response['error']}")
-
-        contents = response["result"]["contents"]
-        if contents:
-            return contents[0]["text"]
-        return ""
-
-    async def list_tools(self, server: MCPServer) -> List[MCPTool]:
-        """List available tools"""
-        request = {
-            "jsonrpc": "2.0",
-            "id": self.get_next_id(),
-            "method": "tools/list"
-        }
-
-        response = await server.handle_request(request)
-        if "error" in response:
-            raise Exception(f"List tools failed: {response['error']}")
-
-        tools = []
-        for tool_data in response["result"]["tools"]:
-            tools.append(MCPTool(**tool_data))
-        return tools
-
-    async def call_tool(self, server: MCPServer, name: str, arguments: Dict[str, Any]) -> str:
-        """Call a tool"""
-        request = {
-            "jsonrpc": "2.0",
-            "id": self.get_next_id(),
-            "method": "tools/call",
-            "params": {
-                "name": name,
-                "arguments": arguments
-            }
-        }
-
-        response = await server.handle_request(request)
-        if "error" in response:
-            raise Exception(f"Tool call failed: {response['error']}")
-
-        content = response["result"]["content"]
-        if content and len(content) > 0:
-            return content[0]["text"]
-        return ""
-
-    async def list_prompts(self, server: MCPServer) -> List[MCPPrompt]:
-        """List available prompts"""
-        request = {
-            "jsonrpc": "2.0",
-            "id": self.get_next_id(),
-            "method": "prompts/list"
-        }
-
-        response = await server.handle_request(request)
-        if "error" in response:
-            raise Exception(f"List prompts failed: {response['error']}")
-
-        prompts = []
-        for prompt_data in response["result"]["prompts"]:
-            prompts.append(MCPPrompt(**prompt_data))
-        return prompts
-
-
-async def demonstrate_mcp():
-    """Demonstrate MCP server and client interaction"""
-
-    print("🔗 Model Context Protocol (MCP) Demonstration")
-    print("=" * 50)
-
-    # Set up logging
-    logging.basicConfig(level=logging.INFO)
-
-    # Create MCP server
-    server = MCPServer("demo-server", "1.0.0")
-
-    # Add resources
-    server.add_resource(MCPResource(
-        uri="file://demo.txt",
-        name="Demo File",
-        description="A demonstration text file",
-        mimeType="text/plain"
-    ))
-
-    server.add_resource(MCPResource(
-        uri="config://app-settings",
-        name="App Settings",
-        description="Application configuration",
-        mimeType="application/json"
-    ))
-
-    # Add tools
-    server.add_tool(MCPTool(
-        name="calculator",
-        description="Perform mathematical calculations",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "expression": {"type": "string", "description": "Math expression to evaluate"}
-            },
-            "required": ["expression"]
-        }
-    ))
-
-    server.add_tool(MCPTool(
-        name="system_info",
-        description="Get system information",
-        inputSchema={
-            "type": "object",
-            "properties": {},
-            "required": []
-        }
-    ))
-
-    # Add prompts
-    server.add_prompt(MCPPrompt(
-        name="code_review",
-        description="Review code for quality and issues",
-        arguments=[
-            {"name": "code", "description": "Code to review", "required": True},
-            {"name": "language", "description": "Programming language", "required": False}
-        ]
-    ))
-
-    # Create MCP client
-    client = MCPClient("demo-client")
-
-    try:
-        print("\\n🚀 Initializing MCP connection...")
-        init_result = await client.initialize(server)
-        print(f"✅ Connection initialized")
-        print(f"   Protocol version: {init_result.get('protocolVersion')}")
-        print(f"   Server: {init_result['serverInfo']['name']} v{init_result['serverInfo']['version']}")
-
-        # List resources
-        print("\\n📚 Available Resources:")
-        resources = await client.list_resources(server)
-        for resource in resources:
-            print(f"   - {resource.name} ({resource.uri})")
-            print(f"     Description: {resource.description}")
-
-        # List tools
-        print("\\n🔧 Available Tools:")
-        tools = await client.list_tools(server)
-        for tool in tools:
-            print(f"   - {tool.name}: {tool.description}")
-
-        # List prompts
-        print("\\n💭 Available Prompts:")
-        prompts = await client.list_prompts(server)
-        for prompt in prompts:
-            print(f"   - {prompt.name}: {prompt.description}")
-
-        # Test tool calls
-        print("\\n🧮 Testing Tool Calls:")
-        print("-" * 30)
-
-        # Calculator tool
-        calc_result = await client.call_tool(server, "calculator", {"expression": "25 * 4 + 100"})
-        print(f"Calculator (25 * 4 + 100): {calc_result}")
-
-        # System info tool
-        try:
-            system_result = await client.call_tool(server, "system_info", {})
-            print(f"System Info: {system_result}")
-        except Exception as e:
-            print(f"System Info: Error - {e}")
-
-        # Test resource reading
-        print("\\n📖 Reading Resources:")
-        print("-" * 25)
-
-        for resource in resources[:2]:  # Test first 2 resources
-            try:
-                content = await client.read_resource(server, resource.uri)
-                print(f"{resource.name}: {content[:100]}..." if len(content) > 100 else f"{resource.name}: {content}")
-            except Exception as e:
-                print(f"{resource.name}: Error - {e}")
-
-        print("\\n✅ MCP demonstration completed!")
-
-    except Exception as e:
-        print(f"❌ Error during demonstration: {e}")
-
-    print("\\n📋 MCP Key Concepts Demonstrated:")
-    print("- Server-client architecture with JSON-RPC protocol")
-    print("- Resource abstraction for data access")
-    print("- Tool abstraction for function execution")
-    print("- Prompt templates for reusable interactions")
-    print("- Standardized error handling and capability negotiation")
-
-
-class FilesystemMCPServer(MCPServer):
-    """Example MCP server for filesystem access"""
-
-    def __init__(self, base_path: str = "."):
-        super().__init__("filesystem-server")
-        self.base_path = Path(base_path).resolve()
-        self._setup_filesystem_resources()
-
-    def _setup_filesystem_resources(self):
-        """Setup filesystem-based resources"""
-        # Add files in base path as resources
-        for file_path in self.base_path.glob("*.py"):
-            relative_path = file_path.relative_to(self.base_path)
-            self.add_resource(MCPResource(
+        for file_path in base.glob("*.py"):
+            relative_path = file_path.relative_to(base)
+            resources.append(types.Resource(
                 uri=f"file://{file_path}",
                 name=str(relative_path),
                 description=f"Python file: {relative_path}",
                 mimeType="text/x-python"
             ))
+        return resources
 
-        # Add filesystem tools
-        self.add_tool(MCPTool(
-            name="list_files",
-            description="List files in directory",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string", "description": "Directory path"},
-                    "pattern": {"type": "string", "description": "File pattern (optional)"}
-                },
-                "required": ["path"]
-            }
-        ))
+    @server.read_resource()
+    async def handle_read_resource(uri: str) -> str:
+        """Read a file resource"""
+        if uri.startswith("file://"):
+            file_path = uri[7:]
+            try:
+                with open(file_path, 'r') as f:
+                    return f.read()
+            except Exception as e:
+                raise ValueError(f"Error reading file: {e}")
+        else:
+            raise ValueError(f"Unsupported URI scheme: {uri}")
 
-    async def _execute_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
+    @server.list_tools()
+    async def handle_list_tools() -> list[types.Tool]:
+        """List filesystem tools"""
+        return [
+            types.Tool(
+                name="list_files",
+                description="List files in directory",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Directory path"
+                        },
+                        "pattern": {
+                            "type": "string",
+                            "description": "File pattern (e.g., '*.py')"
+                        }
+                    },
+                    "required": ["path"]
+                }
+            )
+        ]
+
+    @server.call_tool()
+    async def handle_call_tool(
+        name: str,
+        arguments: dict[str, Any]
+    ) -> list[types.TextContent]:
         """Execute filesystem tools"""
+
         if name == "list_files":
             path = arguments.get("path", ".")
             pattern = arguments.get("pattern", "*")
@@ -599,61 +292,187 @@ class FilesystemMCPServer(MCPServer):
             try:
                 dir_path = Path(path)
                 if not dir_path.is_dir():
-                    return f"Error: {path} is not a directory"
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Error: {path} is not a directory"
+                    )]
 
                 files = list(dir_path.glob(pattern))
                 file_list = [str(f.name) for f in files]
-                return f"Files in {path}: {file_list}"
 
+                return [types.TextContent(
+                    type="text",
+                    text=f"Files in {path}: {file_list}"
+                )]
             except Exception as e:
-                return f"Error listing files: {e}"
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error listing files: {e}"
+                )]
+        else:
+            raise ValueError(f"Unknown tool: {name}")
 
-        return await super()._execute_tool(name, arguments)
+    return server
+
+
+async def run_server_stdio():
+    """Run MCP server using stdio transport (for production use)"""
+    server = create_demo_server()
+
+    async with stdio_server() as (read_stream, write_stream):
+        await server.run(
+            read_stream,
+            write_stream,
+            server.create_initialization_options()
+        )
+
+
+async def demonstrate_mcp_with_client():
+    """Demonstrate MCP interaction using a client"""
+
+    print("🔗 Model Context Protocol (MCP) Demonstration")
+    print("=" * 50)
+    print("\n⚠️  Note: This is a simplified demo showing MCP concepts.")
+    print("In production, client would connect to server via stdio/SSE transport.\n")
+
+    # Create server directly for demo purposes
+    server = create_demo_server()
+
+    print("✅ MCP Server created with capabilities:")
+    print("   - Resources: File and configuration access")
+    print("   - Tools: Calculator and system info")
+    print("   - Prompts: Code review and summarization templates")
+
+    print("\n📋 MCP Key Concepts:")
+    print("=" * 50)
+    print("1. Server Architecture:")
+    print("   - Decorators: @server.list_tools(), @server.call_tool(), etc.")
+    print("   - Type-safe: Uses mcp.types for all protocol messages")
+    print("   - Async: Built on asyncio for high performance")
+
+    print("\n2. Resources:")
+    print("   - Provide data access (files, configs, databases)")
+    print("   - URI-based addressing (file://, config://, etc.)")
+    print("   - MIME type support for content negotiation")
+
+    print("\n3. Tools:")
+    print("   - Expose functions to LLMs")
+    print("   - JSON Schema for input validation")
+    print("   - Structured output with TextContent/ImageContent")
+
+    print("\n4. Prompts:")
+    print("   - Reusable prompt templates")
+    print("   - Parameterized with arguments")
+    print("   - Returns formatted messages for LLMs")
+
+    print("\n5. Transports:")
+    print("   - stdio: Standard input/output (subprocess)")
+    print("   - SSE: Server-Sent Events (HTTP)")
+    print("   - WebSocket: Bidirectional communication")
+
+    print("\n📝 Example Tool Definition:")
+    print("-" * 50)
+    print("""
+@server.list_tools()
+async def handle_list_tools() -> list[types.Tool]:
+    return [
+        types.Tool(
+            name="calculator",
+            description="Perform calculations",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string"}
+                },
+                "required": ["expression"]
+            }
+        )
+    ]
+
+@server.call_tool()
+async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent]:
+    if name == "calculator":
+        result = eval(arguments["expression"])
+        return [types.TextContent(type="text", text=f"Result: {result}")]
+    """)
+
+    print("\n📝 Example Client Usage:")
+    print("-" * 50)
+    print("""
+# Connect to MCP server via stdio
+async with stdio_client(
+    StdioServerParameters(command="python", args=["server.py"])
+) as (read, write):
+    async with ClientSession(read, write) as session:
+        await session.initialize()
+
+        # List and call tools
+        tools = await session.list_tools()
+        result = await session.call_tool("calculator", {"expression": "2+2"})
+
+        # Read resources
+        resources = await session.list_resources()
+        content = await session.read_resource(uri="file://data.txt")
+
+        # Get prompts
+        prompts = await session.list_prompts()
+        prompt = await session.get_prompt("code_review", {"code": "..."})
+    """)
+
+    print("\n🚀 Production Usage:")
+    print("-" * 50)
+    print("1. Run server: python mcp_basics.py --server")
+    print("2. Configure in Claude Desktop or other MCP clients")
+    print("3. Server exposes tools/resources/prompts to LLM")
+    print("4. LLM can call tools and access resources automatically")
+
+    print("\n🔧 Filesystem MCP Server Example:")
+    print("-" * 50)
+    fs_server = create_filesystem_server(".")
+    print("✅ Filesystem server created")
+    print("   - Exposes .py files as resources")
+    print("   - Provides list_files tool")
+    print("   - Can be used to give LLMs filesystem access")
+
+    print("\n✅ MCP demonstration completed!")
 
 
 async def demonstrate_filesystem_mcp():
     """Demonstrate filesystem MCP server"""
 
-    print("\\n📁 Filesystem MCP Server Demonstration")
+    print("\n📁 Filesystem MCP Server Demonstration")
     print("=" * 45)
 
-    # Create filesystem server
-    fs_server = FilesystemMCPServer(".")
-    client = MCPClient("fs-client")
+    server = create_filesystem_server(".")
 
-    try:
-        # Initialize
-        await client.initialize(fs_server)
-        print("✅ Filesystem MCP server initialized")
-
-        # List Python file resources
-        resources = await client.list_resources(fs_server)
-        print(f"\\n📚 Found {len(resources)} Python file resources:")
-        for resource in resources[:5]:  # Show first 5
-            print(f"   - {resource.name}")
-
-        # Test file listing tool
-        print("\\n📂 Testing file listing tool:")
-        result = await client.call_tool(fs_server, "list_files", {
-            "path": ".",
-            "pattern": "*.py"
-        })
-        print(f"Python files: {result}")
-
-    except Exception as e:
-        print(f"❌ Filesystem MCP error: {e}")
+    print("✅ Filesystem MCP server initialized")
+    print("\n💡 Filesystem Server Features:")
+    print("   - Lists Python files as MCP resources")
+    print("   - Provides file reading capability")
+    print("   - Includes list_files tool for directory listing")
+    print("\n📝 This server can be used by LLMs to:")
+    print("   - Read project files")
+    print("   - Understand codebase structure")
+    print("   - Provide code-aware assistance")
 
 
 if __name__ == "__main__":
-    async def main():
-        await demonstrate_mcp()
-        await demonstrate_filesystem_mcp()
+    import sys
 
-    # Check if we need to install additional dependencies
+    # Check for psutil
     try:
         import psutil
     except ImportError:
         print("⚠️  psutil not installed - system_info tool will not work")
-        print("   Install with: pip install psutil")
+        print("   Install with: pip install psutil\n")
 
-    asyncio.run(main())
+    # Allow running as server or demo
+    if len(sys.argv) > 1 and sys.argv[1] == "--server":
+        print("🚀 Starting MCP server on stdio...")
+        asyncio.run(run_server_stdio())
+    else:
+        async def main():
+            await demonstrate_mcp_with_client()
+            await demonstrate_filesystem_mcp()
+
+        asyncio.run(main())

@@ -285,13 +285,7 @@ def demonstrate_basic_crew():
         tasks=[research_task, analysis_task, writing_task],
         process=Process.sequential,
         verbose=True,
-        memory=True,
-        embedder={
-            "provider": "openai",  # or "cohere", "huggingface"
-            "config": {
-                "model": "text-embedding-ada-002"
-            }
-        }
+        memory=True
     )
 
     print("\n🚀 Starting crew execution...")
@@ -375,7 +369,6 @@ def demonstrate_parallel_crew():
         tasks=[market_task, tech_task, content_task],
         process=Process.hierarchical,  # Manager coordinates parallel execution
         verbose=True,
-        manager_llm="gpt-3.5-turbo",
         memory=True
     )
 
